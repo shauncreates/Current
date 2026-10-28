@@ -1,0 +1,11 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const root=__dirname;
+const source=fs.readFileSync(path.join(root,'Current.jsx'),'utf8');
+const marker='if (typeof module !== "undefined"';
+const end=source.lastIndexOf(marker);
+if(end<0) throw Error('Core bootstrap marker missing');
+fs.mkdirSync(path.join(root,'cep/js'),{recursive:true});
+fs.writeFileSync(path.join(root,'cep/js/current-core.js'),source.slice(0,end));
+fs.copyFileSync(path.join(root,'Current.jsx'),path.join(root,'cep/Current.jsx'));
+console.log('Built CEP browser core and headless host core.');

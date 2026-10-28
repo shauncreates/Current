@@ -828,4 +828,7 @@ var AfterCraftCurrentExtension = (function () {
     apply: apply, open: open };
 })();
 if (typeof module !== "undefined" && module.exports && typeof app === "undefined") module.exports = AfterCraftCurrentExtension;
-else AfterCraftCurrentExtension.open(this);
+else if (!(typeof $ !== "undefined" && $.global && $.global.__CurrentHeadless === true)) {
+  if (/EffectCraft|AfterCraft/i.test(String(app.version))) AfterCraftCurrentExtension.open(this);
+  else alert("Current for After Effects is now a CEP extension. Install Current CEP Setup, then open Window > Extensions > Current. Close this legacy ScriptUI panel.");
+}

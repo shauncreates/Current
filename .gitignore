@@ -1,3 +1,6 @@
 *.backup-*
 *.zip
+artifacts/
+cep/Current.jsx
+cep/js/current-core.js
 

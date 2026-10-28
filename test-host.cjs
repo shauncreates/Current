@@ -1,0 +1,56 @@
+// Public API model tests for the CEP dispatcher; no Adobe code or presets.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const context = vm.createContext({console});
+vm.runInContext(`var $={global:{__CurrentHeadless:true},fileName:'/Current/host/current-host.jsx'};
+function File(){return {parent:{parent:{fsName:'/Current'}}};}
+var app={version:'26.0',project:{activeItem:null}};`,context);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'Current.jsx'),'utf8'),context);
+assert.equal(vm.runInContext('typeof AfterCraftCurrentExtension.apply',context),'function','headless load must not create ScriptUI');
+// Reuse the synthetic host model already exercised by the original numerical tests.
+const model=fs.readFileSync(path.join(__dirname,'test-current.cjs'),'utf8');
+const setup=model.slice(model.indexOf('global.KeyframeInterpolationType ='), model.indexOf('let p = new Property()')).replaceAll('global.','this.');
+context.assert=assert;
+vm.runInContext(setup,context);
+vm.runInContext('app=host(new Property());',context);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'cep/host/current-host.jsx'),'utf8'),context);
+function dispatch(value){context.request=typeof value==='string'?value:JSON.stringify(value); return JSON.parse(vm.runInContext('CurrentCEP.dispatch(request)',context));}
+assert.equal(dispatch({op:'ping'}).result.type,'cep');
+assert.equal(dispatch({op:'selection'}).result.intervals,1);
+assert.equal(vm.runInContext('app.begin',context),0,'inspection never starts an undo group');
+assert.equal(dispatch({op:'apply',config:{curve:[0,.4,1,.6]}}).result.approximated,true);
+assert.equal(vm.runInContext('app.begin',context),1);
+assert.equal(vm.runInContext('app.end',context),1);
+assert.equal(dispatch({op:'apply',config:{mode:'spring'}}).result.generatedKeys,24);
+assert.equal(dispatch({op:'apply',config:{mode:'elastic'},refine:true}).result.generatedKeys,24);
+vm.runInContext('app.project.activeItem.selectedProperties[0].keys[3].value+=2;',context);
+assert.match(dispatch({op:'apply',config:{mode:'spring'},refine:true}).error,/preserved/);
+assert.equal(dispatch({op:'reset'}).result.canRefine,false);
+assert.match(dispatch({op:'apply',refine:true,config:{mode:'spring'}}).error,/before refining/);
+for(const hostile of ['not JSON','x'.repeat(65537),'{"op":"ping","op":"apply"}',{op:'eval',script:'alert(1)'},{op:'ping',action:'apply'},{op:'apply',refine:'yes'}]) assert.equal(dispatch(hostile).ok,false);
+const before=vm.runInContext('app.begin',context);
+assert.equal(dispatch({op:'apply',config:{mode:'bogus'}}).ok,false);
+assert.equal(vm.runInContext('app.begin',context),before,'invalid config must leave keys and history unchanged');
+vm.runInContext('File.saveDialog=function(){return null};File.openDialog=function(){return null};',context);
+const config={mode:'bezier',curve:[.3,0,.7,1]};
+assert.equal(dispatch({op:'export',format:'current',list:{name:'User',graphs:[{name:'Ease',config}]}}).result.cancelled,true);
+assert.equal(dispatch({op:'import'}).result.cancelled,true);
+assert.match(dispatch({op:'export',format:'flow',list:{name:'Motion',graphs:[{name:'Spring',config:{mode:'spring'}}]}}).error,/no Bezier/);
+vm.runInContext(`var written='',exportPath='';
+var originalFile=File;
+File=function(p){return {fsName:p,exists:false,open:function(){return true;},write:function(s){written=s;exportPath=this.fsName;return true;},close:function(){return true;}};};
+File.saveDialog=function(){return File('/graphs/Mixed');};`,context);
+const mixed={name:'Mixed',graphs:[{name:'Ease',config},{name:'Spring',config:{mode:'spring'}}]};
+let exported=dispatch({op:'export',format:'flow',list:mixed});
+assert.deepEqual(exported.result.skipped,['Spring']);
+assert.equal(exported.result.exported,1);
+assert.equal(exported.result.path,'/graphs/Mixed.flow');
+assert.equal(JSON.parse(vm.runInContext('written',context))[0].name,'Ease');
+exported=dispatch({op:'export',format:'current',list:mixed});
+assert.equal(exported.result.path,'/graphs/Mixed.current');
+assert.equal(JSON.parse(vm.runInContext('written',context)).lists[0].graphs.length,2);
+vm.runInContext(`File.openDialog=function(){return {fsName:'/graphs/My%20curves.flow',name:'My%20curves.flow',exists:true,length:80,open:function(){return true;},close:function(){return true;},read:function(){return '[{"name":"Test","value":[0,0,1,1]}]';}};};`,context);
+assert.equal(dispatch({op:'import'}).result.document.lists[0].name,'My curves');
+console.log('CEP host bridge: headless load, selection, apply, approximation, refinement, cancellation and hostile-input checks passed. Actual AE runtime remains unverified.');
