@@ -4,6 +4,14 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const context = vm.createContext({console});
+// CEP can load ScriptPath under a numeric temporary filename. Resolve core from
+// the explicit extension root, without relying on an already-preloaded engine.
+const cold=vm.createContext({console});
+vm.runInContext(`var $={global:{},fileName:'61308'};function File(p){return {fsName:p,exists:p==='/installed/Current/Current.jsx',parent:{parent:{fsName:'/wrong'}}};}var app={version:'26.5'};`,cold);
+cold.$.evalFile=file=>{assert.equal(file.fsName,'/installed/Current/Current.jsx');vm.runInContext(fs.readFileSync(path.join(__dirname,'Current.jsx'),'utf8'),cold);};
+vm.runInContext(fs.readFileSync(path.join(__dirname,'cep/host/current-host.jsx'),'utf8'),cold);
+assert.equal(JSON.parse(vm.runInContext(`CurrentCEP.dispatch('{"op":"ping"}','/installed/Current')`,cold)).ok,true);
+assert.equal(cold.$.global.__CurrentHeadless,undefined,'restore headless flag after loading');
 vm.runInContext(`var $={global:{__CurrentHeadless:true},fileName:'/Current/host/current-host.jsx'};
 function File(){return {parent:{parent:{fsName:'/Current'}}};}
 var app={version:'26.0',project:{activeItem:null}};`,context);

@@ -16,7 +16,9 @@ Select two adjacent keys on a numeric property, choose or edit a curve, then App
 
 ## Curves and libraries
 
-Bezier, standard Ease/Quad/Cubic/Quart/Quint/Sine/Expo/Circ/Back families, Spring, Elastic and Bounce are available. The motion preview changes no project data. Defaults are read-only. Create named custom tabs and save your graphs there.
+The mode selector offers Bezier, Elastic and Bounce. Standard Ease/Quad/Cubic/Quart/Quint/Sine/Expo/Circ/Back presets and saved Spring curves remain supported. Elastic and Bounce have direct graph handles for timing, decay and magnitude. The motion preview changes no project data. Defaults are read-only. Create named custom tabs and save your graphs there.
+
+Preset and mode changes animate briefly; direct dragging responds immediately. Reduced-motion preferences are respected. The graph resizes with the panel while handles, strokes and toolbar icons retain their shape and size.
 
 Each `.current` export includes one complete list, including physics and standard curves. Import creates a new tab named after the file; duplicate names get numbered suffixes. `.flow` import supports Bezier libraries. Flow export skips unsupported curves and reports them. It writes nothing if the list contains no Bezier graphs.
 
@@ -24,13 +26,13 @@ Bezier coordinates remain exact when saved or exported. Where After Effects cann
 
 ## EffectCraft
 
-Normal EffectCraft does not currently host CEP panels. `Current.jsx` and `Install-Current.ps1` remain a legacy ScriptUI compatibility route for that host; the new CEP edition is for After Effects. The built-in native panel is available in [AfterCraft](https://github.com/shauncreates/AfterCraft). The CEP browser UI can also be previewed outside AE, but Apply requires a host bridge.
+Normal EffectCraft does not currently host CEP panels. `Current.jsx` and `Install-Current.ps1` remain a legacy ScriptUI compatibility route for that host. [AfterCraft](https://github.com/shauncreates/AfterCraft) provides a built-in native panel and an experimental floating CEP host: choose **Window > Open CEP Panel…** and select Current's installed extension folder. This is partial CEP compatibility, not docked Adobe CEP. The CEP browser UI can also be previewed outside AE, but Apply requires a host bridge.
 
 ## Development and verification
 
-Run `node build-cep.cjs`, `node test-current.cjs`, and `node test-host.cjs`. For browser interaction checks, install Playwright and run `node test-cep.cjs` (`BROWSER_CHANNEL=chrome` uses an installed Chrome). Build the Windows installer with Inno Setup using `packaging/Current-CEP.iss`.
+Run `node build-cep.cjs`, `node test-current.cjs`, and `node test-host.cjs`. For browser interaction checks, install Playwright and run `node test-cep.cjs` and `node test-resize.cjs` (`BROWSER_CHANNEL=chrome` uses an installed Chrome). Build the Windows installer with Inno Setup using `packaging/Current-CEP.iss`.
 
-The browser regression covers repeated drags, no host calls during drag, apply dispatch, modes, list import and narrow layouts. Public host tests cover undo-group creation, refinement, endpoint approximation, hostile input and file interchange. Actual AE 26.5 host smoke testing applied Bezier and Spring to a temporary composition successfully. Live CEP 12 testing inside After Effects 26.5 also completed 20 repeated handle drags, followed by successful Bezier and Spring applications. This does not establish compatibility with every AE version or property type.
+The browser regression covers repeated drags, no host calls during drag, apply dispatch, modes, list import, reduced motion and resizing. Public host tests cover cold core loading, undo-group creation, refinement, endpoint approximation, hostile input and file interchange. Preview 4 was tested live in After Effects 26.5 / CEP 12: 20 repeated drags, a cold core load, Bezier Apply, Elastic and Bounce baking (29 generated keys each), and Undo restoring the original keys. Wide, tall, narrow and compact panel checks verified circular handles and fixed-size icons while preserving libraries. This does not establish compatibility with every AE version or property type.
 
 Current is original work under MIT OR Apache-2.0. Flow packaging/interchange was inspected with REA to establish compatibility; its implementation, assets and presets are not included. This is an independent project.
 

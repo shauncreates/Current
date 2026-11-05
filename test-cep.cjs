@@ -14,8 +14,34 @@ await page.locator('#apply').click();assert.equal(await page.evaluate(()=>hostCa
 await page.locator('#list-name').fill('Mine');await page.locator('#new-list').click();await page.locator('#graph-name').fill('Saved');await page.locator('#save').click();
 await page.locator('#import-file').setInputFiles({name:'Another.flow',mimeType:'application/json',buffer:Buffer.from('[{"name":"Vertical","value":[0,0.4,1,0.6]}]')});await page.waitForFunction(()=>CurrentPanel.getDocument().lists.length===2);
 assert.equal(await page.evaluate(()=>CurrentPanel.getDocument().lists[1].name),'Another');
-for(const mode of ['spring','elastic','bounce','standard','bezier']){await page.locator('[data-mode="'+mode+'"]').click();assert.equal(await page.evaluate(()=>CurrentPanel.getConfig().mode),mode);}
-for(const width of [240,300,500]){await page.setViewportSize({width,height:640});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'horizontal overflow at '+width);}
+assert.equal(await page.locator('[data-mode=standard],[data-mode=spring]').count(),0);
+for(const mode of ['elastic','bounce','bezier']){await page.locator('[data-mode="'+mode+'"]').click();assert.equal(await page.evaluate(()=>CurrentPanel.getConfig().mode),mode);}
+for(const mode of ['elastic','bounce']) {
+  await page.locator('[data-mode="'+mode+'"]').click();
+  await page.waitForFunction(mode=>document.querySelector('#curve-label').textContent.startsWith(mode),mode);
+  for(const id of ['hit0','hit2']) {
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const before=await page.evaluate(()=>CurrentPanel.getConfig());
+    const box=await page.locator('#'+id).boundingBox();
+    await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
+    await page.mouse.move(box.x+box.width/2+20,box.y+box.height/2+15,{steps:8});await page.mouse.up();
+    const after=await page.evaluate(()=>CurrentPanel.getConfig());
+    assert.notDeepEqual(after,before,mode+' '+id+' must edit parameters '+JSON.stringify({before,after,box}));
+    assert.deepEqual(after.curve,before.curve,'physics drag preserves stored Bezier');
+    assert.equal(await page.evaluate(()=>CurrentPanel.isDragging()),false);
+  }
+}
+assert.equal(await page.evaluate(()=>hostCalls.length),1,'physics drag must not call host');
+// Old modes remain loadable through libraries even though their selectors are gone.
+const legacy={format:'current.graph-lists',version:1,lists:[{name:'Legacy',graphs:[{name:'Old Spring',config:{mode:'spring'}},{name:'Old Ease',config:{mode:'standard',family:'quint',direction:'in'}}]}]};
+await page.locator('#import-file').setInputFiles({name:'Legacy.current',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(legacy))});
+await page.getByRole('button',{name:'Old Spring',exact:true}).click();assert.equal(await page.evaluate(()=>CurrentPanel.getConfig().mode),'spring');
+await page.getByRole('button',{name:'Old Ease',exact:true}).click();assert.equal(await page.evaluate(()=>CurrentPanel.getConfig().family),'quint');
+await page.locator('[data-mode=bezier]').click();
+await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-mode=elastic]').click();
+await page.waitForTimeout(40);const reducedPath=await page.locator('#curve').getAttribute('d');await page.waitForTimeout(100);assert.equal(await page.locator('#curve').getAttribute('d'),reducedPath);
+await page.emulateMedia({reducedMotion:'no-preference'});
+for(const width of [240,300,500]){await page.setViewportSize({width,height:640});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'horizontal overflow at '+width);await page.screenshot({path:path.join(__dirname,'artifacts/cep-'+width+'.png')});}
 await page.setViewportSize({width:300,height:640});fs.mkdirSync(path.join(__dirname,'artifacts'),{recursive:true});await page.screenshot({path:path.join(__dirname,'artifacts/cep-panel.png')});
 assert.deepEqual(errors,[]);console.log('CEP browser: 20 repeated drags, zero host calls on drag, explicit apply, modes, lists, Flow import and responsive layout passed.');
 }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}

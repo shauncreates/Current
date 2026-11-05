@@ -2,12 +2,13 @@
 // evalScript calls are explicit commands; graph dragging never calls this bridge.
 var CurrentCEP = (function () {
   var busy = false, recipe = null, hostDirectory = File($.fileName).parent;
-  function core() {
+  function core(extensionRoot) {
     if (typeof AfterCraftCurrentExtension === "undefined") {
       var old = $.global.__CurrentHeadless;
       try {
         $.global.__CurrentHeadless = true;
-        var source = File(hostDirectory.parent.fsName + "/Current.jsx");
+        var root = typeof extensionRoot === "string" && extensionRoot.length > 0 && extensionRoot.length <= 32768 ? extensionRoot : hostDirectory.parent.fsName;
+        var source = File(root + "/Current.jsx");
         if (!source.exists) throw new Error("Current's host engine is missing. Reinstall the complete CEP package.");
         $.evalFile(source);
       } finally { $.global.__CurrentHeadless = old; }
@@ -62,10 +63,10 @@ var CurrentCEP = (function () {
     doc.lists[0].name = decodeURI(file.name).replace(/\.(current|flow|json)$/i, "");
     return { document: api.validateDocument(doc), path: file.fsName };
   }
-  function dispatch(text) {
+  function dispatch(text, extensionRoot) {
     var api;
     try {
-      api = core();
+      api = core(extensionRoot);
       if (busy) fail("Current is finishing another command. Try again shortly.");
       if (typeof text !== "string" || text.length > 65536) fail("Invalid or oversized Current command.");
       var request = api.parseJSON(text);
@@ -94,7 +95,8 @@ var CurrentCEP = (function () {
       var message = String(error && error.message || error);
       if (message.length > 2000) message = message.slice(0, 2000);
       if (api) return api.stringifyJSON({ ok: false, error: message });
-      return '{"ok":false,"error":"Current host engine could not load. Reinstall the complete CEP package."}';
+      var escaped = ("Current host engine could not load: " + message).replace(/[\\"\x00-\x1f]/g, function (c) { return '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4); });
+      return '{"ok":false,"error":"' + escaped + '"}';
     }
   }
   return { dispatch: dispatch };

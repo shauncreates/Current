@@ -1,14 +1,14 @@
 [Setup]
 AppId={{650C04AE-9EA9-4F88-AB58-63FD86166521}
 AppName=Current CEP
-AppVersion=1.0.0.3
+AppVersion=1.0.0.4
 AppPublisher=Current contributors
 AppPublisherURL=https://github.com/shauncreates/Current
 DefaultDirName={commoncf32}\Adobe\CEP\extensions\com.shauncreates.current
 DisableDirPage=yes
 PrivilegesRequired=admin
 OutputDir=..\artifacts
-OutputBaseFilename=Current-CEP-1.0.0-preview.3-Setup
+OutputBaseFilename=Current-CEP-1.0.0-preview.4-Setup
 UninstallDisplayName=Current CEP
 Compression=lzma2
 SolidCompression=yes
